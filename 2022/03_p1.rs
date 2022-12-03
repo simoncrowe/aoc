@@ -4,9 +4,8 @@ use std::string::String;
 
 fn main() -> io::Result<()> {
     let input = File::open("03_input.txt")?;
-    let reader = BufReader::new(input);
-    let total_priorities: u32 = reader
-        .lines()
+    let lines = BufReader::new(input).lines();
+    let total_priorities: u32 = lines 
         .map(|line| line.unwrap())
         .map(common_item_priority)
         .sum();

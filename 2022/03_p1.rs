@@ -1,16 +1,20 @@
-use std::fs;
+use std::fs::File;
+use std::io::{self, prelude::*, BufReader};
+use std::string::String;
 
-fn main() {
-    let rucksacks_contents = fs::read_to_string("03_input.txt").unwrap();
-    let total_priorities: u32 = rucksacks_contents
-        .trim()
-        .split("\n")
+fn main() -> io::Result<()> {
+    let input = File::open("03_input.txt")?;
+    let reader = BufReader::new(input);
+    let total_priorities: u32 = reader
+        .lines()
+        .map(|line| line.unwrap())
         .map(common_item_priority)
         .sum();
     println!("Sum of priorities of common items is {total_priorities}");
+    Ok(())
 }
 
-fn common_item_priority(rucksack_contents: &str) -> u32 {
+fn common_item_priority(rucksack_contents: String) -> u32 {
     let (comp_one, comp_two) = rucksack_contents
         .as_bytes()
         .split_at(rucksack_contents.len() / 2);

@@ -24,8 +24,8 @@ fn badge_priority(bag_one: &[u8], bag_two: &[u8], bag_three: &[u8]) -> u32 {
 }
 
 fn priority(item: &u8) -> u32 {
+    // Z is 90 in utf-8; a is 97
     if *item <= 90 {
-        // Z is the byte 91 in unicode
         (item - 38).into()
     } else {
         (item - 96).into()

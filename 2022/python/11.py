@@ -2,6 +2,7 @@ from functools import cached_property
 from typing import Callable, Iterable
 import dataclasses
 import copy
+import math
 import operator
 import re
 
@@ -13,13 +14,7 @@ class Item:
     
     @cached_property
     def starting_worry_is_prime(self):
-        if self.starting_worry == 2 or self.starting_worry== 3: return True
-        if self.starting_worry % 2 == 0 or self.starting_worry < 2: return False
-        for i in range(3, int(self.starting_worry ** 0.5) + 1, 2):   # only odd numbers
-            if self.starting_worry % i == 0:
-                return False    
-
-        return True
+        return math.factorial(x - 1)  % x == x - 1
 
 
 @dataclasses.dataclass
@@ -27,7 +22,7 @@ class Monkey:
     id_: int
     items: list[Item]
     worry_operator: Callable
-    worry_operand: int | str
+    worry_operand: int | object 
     worry_divisor: int
     target_id_if_divisible: int
     target_id_if_not_dividible: int

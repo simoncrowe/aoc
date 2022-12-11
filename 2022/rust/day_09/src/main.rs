@@ -7,88 +7,89 @@ pub fn main() {
     let input_path = "/home/sc/git/aoc/2022/input/09_input.txt";
     println!(
         "Answer to part one: {}",
-        answer_part_one(&input_path).unwrap()
+        compute_trail_length(2, &input_path).unwrap()
+    );
+    println!(
+        "Answer to part two: {}",
+        compute_trail_length(10, &input_path).unwrap()
     );
 }
 
-fn answer_part_one(input_path: &str) -> io::Result<usize> {
-    let mut head: Point = Point::new(0, 0);
-    let mut tail: Point = Point::new(0, 0);
-    let mut trail: HashSet<Point> = HashSet::new();
-    trail.insert(tail);
+fn compute_trail_length(knots_count: usize, input_path: &str) -> io::Result<usize> {
+    let mut rope: Vec<Vector2> = (0..knots_count).map(|_| Vector2::new(0, 0)).collect();
+    let mut trail: HashSet<Vector2> = HashSet::new();
+    trail.insert(rope[knots_count - 1]);
+
     let input = File::open(input_path)?;
     for line in BufReader::new(input).lines().map(|ln| ln.unwrap()) {
-        println!("\n{line}\n");
         let (direction, mag) = line.split_once(" ").unwrap();
         let magnitude = mag.parse::<i32>().unwrap();
-        let head_offset = Point::unit_vector_from_direction(&direction);
+        let head_offset = Vector2::unit_vector_from_direction(&direction);
 
         for _ in 0..magnitude {
-            head = head + head_offset;
-            println!("Head pos: {head:?}; head offset: {head_offset:?}");
-            let tail_offset = get_tail_offset(&head, &tail);
-            tail = tail + tail_offset;
-            trail.insert(tail);
-            println!("Tail pos: {tail:?}; tail offset: {tail_offset:?}");
-            println!("Tail len {}\n", trail.len());
+            rope[0] = rope[0] + head_offset;
+            for i in 1..knots_count {
+                let tail_offset = get_tail_offset(&rope[i - 1], &rope[i]);
+                rope[i] = rope[i] + tail_offset;
+            }
+            trail.insert(rope[knots_count - 1]);
         }
     }
     Ok(trail.len())
 }
 
-fn get_tail_offset(head: &Point, tail: &Point) -> Point {
+fn get_tail_offset(head: &Vector2, tail: &Vector2) -> Vector2 {
     let diff = *head - *tail;
-    println!("Diff of head and tail: {diff:?}");
     let mut x_offset = 0;
-    if diff.x > 1 || (diff.x > 0 && diff.y > 1) {
+    if diff.x > 1 || (diff.x > 0 && (diff.y > 1 || diff.y < -1)) {
         x_offset = 1;
-    } else if diff.x < -1 || (diff.x < 0 && diff.y < -1) {
+    } else if diff.x < -1 || (diff.x < 0 && (diff.y > 1 || diff.y < -1)) {
         x_offset = -1;
     }
     let mut y_offset = 0;
-    if diff.y > 1 || (diff.x > 1 && diff.y > 0) {
+    if diff.y > 1 || (diff.y > 0 && (diff.x > 1 || diff.x < -1)) {
         y_offset = 1;
-    } else if diff.y < -1 || (diff.x < -1 && diff.y < 0) {
+    } else if diff.y < -1 || (diff.y < 0 && (diff.x > 1 || diff.x < -1)) {
         y_offset = -1;
     }
-    Point::new(x_offset, y_offset)
+    Vector2::new(x_offset, y_offset)
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-struct Point {
+struct Vector2 {
     x: i32,
     y: i32,
 }
 
-impl Point {
-    pub fn new(x: i32, y: i32) -> Point {
-        Point { x, y }
+impl Vector2 {
+    pub fn new(x: i32, y: i32) -> Vector2 {
+        Vector2 { x, y }
     }
 
-    pub fn unit_vector_from_direction(direction: &str) -> Point {
+    pub fn unit_vector_from_direction(direction: &str) -> Vector2 {
         match direction {
-            "U" => Point::new(0, 1),
-            "R" => Point::new(1, 0),
-            "D" => Point::new(0, -1),
-            "L" => Point::new(-1, 0),
+            "U" => Vector2::new(0, 1),
+            "R" => Vector2::new(1, 0),
+            "D" => Vector2::new(0, -1),
+            "L" => Vector2::new(-1, 0),
             _ => unreachable!("Direction should not deviate from U, R, D or L"),
         }
     }
 }
 
-impl ops::Add<Point> for Point {
-    type Output = Point;
+impl ops::Add<Vector2> for Vector2 {
+    type Output = Vector2;
 
-    fn add(self, _rhs: Point) -> Point {
-        Point::new(self.x + _rhs.x, self.y + _rhs.y)
+    fn add(self, _rhs: Vector2) -> Vector2 {
+        Vector2::new(self.x + _rhs.x, self.y + _rhs.y)
     }
 }
 
-impl ops::Sub<Point> for Point {
-    type Output = Point;
+impl ops::Sub<Vector2> for Vector2 {
+    type Output = Vector2;
 
-    fn sub(self, _rhs: Point) -> Point {
-        Point::new(self.x - _rhs.x, self.y - _rhs.y)
+    fn sub(self, _rhs: Vector2) -> Vector2 {
+        Vector2::new(self.x - _rhs.x, self.y - _rhs.y)
     }
 }
 
@@ -99,6 +100,12 @@ mod tests {
     #[test]
     fn test_part_one_example() {
         let test_input_path = "/home/sc/git/aoc/2022/input/09_test_input.txt";
-        assert_eq!(13, answer_part_one(&test_input_path).unwrap());
+        assert_eq!(13, compute_trail_length(2, &test_input_path).unwrap());
+    }
+
+    #[test]
+    fn test_part_two_example() {
+        let test_input_path = "/home/sc/git/aoc/2022/input/09_test_input.txt";
+        assert_eq!(1, compute_trail_length(10, &test_input_path).unwrap());
     }
 }

@@ -6,7 +6,7 @@ const UPPERCASE_S_ORD: u8 = 83;
 const UPPERCASE_E_ORD: u8 = 69;
 
 pub fn main() {
-    let input_path = "/home/sc/git/aoc/2022/input/09_input.txt";
+    let input_path = "/home/sc/git/aoc/2022/input/12_input.txt";
     println!(
         "Answer to part one: {}",
         compute_shortest_path_length(&input_path).unwrap()
@@ -47,7 +47,7 @@ fn get_directions(grid: &Terrain, pos: (usize, usize), from: Direction) -> Vec<(
     let cur_val = grid.get_elevation(pos.0, pos.1).unwrap();
     let mut dirs: Vec<(Direction, (usize, usize))> = Vec::new();
     println!("Checking directions for {}, {}", pos.0, pos.1);
-    if !matches!(from,  Direction::Up) && pos.1 != grid.height {
+    if !matches!(from,  Direction::Up) && pos.1 <= grid.height {
         match grid.get_elevation(pos.0, pos.1 + 1)  {
             Some(elevation) => {
                 if cur_val + 1 >= elevation {
@@ -57,7 +57,7 @@ fn get_directions(grid: &Terrain, pos: (usize, usize), from: Direction) -> Vec<(
             None => {}
         }
     }
-    if !matches!(from, Direction::Right) && pos.0 != grid.width {
+    if !matches!(from, Direction::Right) && pos.0 <= grid.width {
         match grid.get_elevation(pos.0 + 1, pos.1) {
             Some(elevation) => {
                 if cur_val + 1 >= elevation {
@@ -124,6 +124,9 @@ impl Terrain {
             .enumerate()
         {
             for (col_idx, ord) in line.as_bytes().iter().map(|o| *o).enumerate() {
+                let bytes = vec![ord];
+                let letter = std::str::from_utf8(&bytes).unwrap();
+                println!("{}, {}: {} ({})", row_idx, col_idx, ord, letter);
                 if ord == UPPERCASE_S_ORD {
                     start.0 = col_idx;
                     start.1 = row_idx;

@@ -1,4 +1,4 @@
-from functools import cached_property 
+from functools import cached_property, reduce
 from typing import Callable, Iterable
 import dataclasses
 import copy
@@ -90,31 +90,24 @@ def solve_monkey_business(monkey_iter: Iterable[Monkey], rounds=20) -> list[Monk
 
 def solve_relentless_monkey_business(monkey_iter: Iterable[Monkey], rounds=20) -> list[Monkey]:
     monkeys = sorted(monkey_iter, key=operator.attrgetter("id_")) 
+    least_commmon_multiple = reduce(operator.mul, (monkey.worry_divisor for monkey in monkeys))
     lookup = {monkey.id_: monkey for monkey in monkeys}
     for i in range(rounds):
-        #print(f"\n ROUND {i}")
         for monkey in monkeys:
-            #print(f"\nMONKEY {monkey}")
             while monkey.items:
                 item = monkey.items.pop()
-                print(f"Starting worry {item}")
-                print(f"Operator {monkey.worry_operator.__name__}")
-                #if monkey.worry_operand is OPERAND_OLD:
-                #    print(f"Operand {item.worry}")
-                #    item.worry = monkey.worry_operator(item.worry, item.worry)
-                #else:
-                #    print(f"Operand {monkey.worry_operand}")
-                #    item.worry = monkey.worry_operator(item.worry,
-                #                                       monkey.worry_operand)
-                #print(f"New value: {item}")
-                #if item.worry % monkey.worry_divisor == 0:
-                if item.starting_worry_is_prime:
-                    #print(f"Value {item} IS dividible by {monkey.worry_divisor}") 
+                if monkey.worry_operand is OPERAND_OLD:
+                    item.worry = monkey.worry_operator(item.worry, item.worry)
+                else:
+                    item.worry = monkey.worry_operator(item.worry,
+                                                       monkey.worry_operand)
+                item.worry %= least_commmon_multiple 
+
+                if item.worry % monkey.worry_divisor == 0:
                     lookup[monkey.target_id_if_divisible].items.append(item)
                 else:
-                    #print(f"Value {item} IS NOT dividible by {monkey.worry_divisor}") 
                     lookup[monkey.target_id_if_not_dividible].items.append(item)
-                #print("")
+
                 monkey.inspection_count += 1
     return monkeys 
 
@@ -126,7 +119,7 @@ if __name__ == "__main__":
 
 
     parsed = parse_monkeys("/home/sc/git/aoc/2022/input/11_input.txt")
-    solved = solve_monkey_business(parsed, rounds=10_000)
+    solved = solve_relentless_monkey_business(parsed, rounds=10_000)
     first, second = sorted(monkey.inspection_count for monkey in solved)[-2:]
     print(f"Answer to part two: {first * second}")
 

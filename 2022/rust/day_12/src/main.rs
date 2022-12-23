@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 
@@ -10,98 +10,49 @@ pub fn main() {
     let input_path = "/home/sc/git/aoc/2022/input/12_input.txt";
     println!(
         "Answer to part one: {}",
-        compute_shortest_path_length(&input_path).unwrap()
+        compute_shortest_path_length_from_start_to_end(&input_path).unwrap()
+    );
+    println!(
+        "Answer to part two: {}",
+        compute_shortest_path_length_from_lowest_to_end(&input_path).unwrap()
     );
 }
 
-fn compute_shortest_path_length(input_path: &str) -> io::Result<usize> {
-    let grid = Terrain::new(input_path).unwrap();
-    let mut paths: Vec<Vec<Pos>> = Vec::new();
-    let mut paths_to_dest: Vec<Vec<Pos>> = Vec::new();
-    paths.push(vec![grid.start]);
+fn compute_shortest_path_length_from_start_to_end(input_path: &str) -> io::Result<u32> {
+    let grid = Terrain::new(input_path).expect("Should be able to parse terrain");
+    Ok(compute_shortest_path_length(&grid, grid.start, grid.end))
+}
+
+fn compute_shortest_path_length_from_lowest_to_end(input_path: &str) -> io::Result<u32> {
+    let grid = Terrain::new(input_path).expect("Should be able to parse terrain");
+    let shortest_length = grid
+        .get_positions(0)
+        .map(|start| compute_shortest_path_length(&grid, start, grid.end))
+        .min()
+        .expect("There should be a shortest path");
+    Ok(shortest_length)
+}
+
+fn compute_shortest_path_length(grid: &Terrain, start: Pos, end: Pos) -> u32 {
     let mut traversed: HashSet<Pos> = HashSet::new();
-    let mut depth = 0;
-    loop {
-        println!("\nChecking depth {}", depth);
-        depth += 1;
-
-        let mut fully_traversed = true;
-        let mut new_paths: Vec<Vec<Pos>> = Vec::new();
-        for path in paths.iter_mut().filter(|p| *p.last().unwrap() != grid.end) {
-            let path_copy = path.clone();
-            let cur_pos = path_copy.last().unwrap();
-            let possible_steps = get_possible_steps(&grid, *cur_pos);
-            let selected_steps = select_steps(cur_pos, possible_steps, &grid.end);
-            //let traversed_copy: HashSet<Pos> = HashSet::from_iter(path.clone().into_iter());
-            let traversed_copy = traversed.clone();
-            let mut steps_iter = selected_steps
-                .into_iter()
-                .filter(|pos| !traversed_copy.contains(pos));
-            match steps_iter.next() {
-                Some(pos) => {
-                    path.push(pos);
-                    traversed.insert(pos);
-                    if pos == grid.end {
-                        paths_to_dest.push(path.clone());
-                    } else {
-                        fully_traversed = false;
-                    }
-                }
-                None => continue,
-            }
-            while let Some(pos) = steps_iter.next() {
-                //println!("Splitting to new line at {pos:?}");
-                let mut new_path = path.clone();
-                new_path.push(pos);
-                traversed.insert(pos);
-                if pos == grid.end {
-                    paths_to_dest.push(new_path);
-                } else {
-                    new_paths.push(new_path);
-                }
+    let mut traversal_queue: VecDeque<(Pos, u32)> = VecDeque::new();
+    traversal_queue.push_back((start, 0));
+    while let Some((cur_pos, cur_depth)) = traversal_queue.pop_front() {
+        let possible_steps = get_possible_steps(&grid, cur_pos);
+        let traversed_copy = traversed.clone();
+        let mut steps_iter = possible_steps
+            .into_iter()
+            .filter(|pos| !traversed_copy.contains(pos));
+        while let Some(pos) = steps_iter.next() {
+            traversed.insert(pos);
+            if pos == end {
+                return cur_depth + 1;
+            } else {
+                traversal_queue.push_back((pos, cur_depth + 1));
             }
         }
-        paths.append(&mut new_paths);
-        println!("total paths: {}", paths.len());
-        println!("paths to dest: {}", paths_to_dest.len());
-        let mut fewest_steps = 0;
-        match paths_to_dest.iter().map(|path| path.len()).min() {
-            Some(len) => {
-                fewest_steps = len - 1;
-                println!("Fewest steps {}", fewest_steps);
-            }
-            None => {}
-        }
-        if fully_traversed {
-            break;
-        }
     }
-    Ok(paths_to_dest.iter().map(|path| path.len()).min().unwrap() - 1)
-}
-
-fn select_steps(current: &Pos, potential: Vec<Pos>, target: &Pos) -> Vec<Pos> {
-    let perfect_direction: Vec<Pos> = potential.clone().into_iter().filter(|p| towards(current, p, target, 1)).collect();
-    if perfect_direction.len() > 0 {
-        return perfect_direction;
-    } 
-    potential.clone().into_iter().filter(|p| towards(current, p, target, 2)).collect()
-}
-
-fn towards(current: &Pos, potential: &Pos, target: &Pos, tolerance: usize) -> bool {
-    let mut away_count = 0;
-    if current.x < target.x && potential.x < current.x {
-        away_count += 1; 
-    }
-    if current.y < target.y && potential.y < current.y {
-        away_count += 1; 
-    }
-    if current.x > target.x && potential.x > current.x {
-        away_count += 1; 
-    }
-    if current.y > target.y && potential.y > current.y {
-        away_count += 1; 
-    }
-    away_count < tolerance 
+    u32::MAX 
 }
 
 fn get_possible_steps(grid: &Terrain, pos: Pos) -> Vec<Pos> {
@@ -159,7 +110,6 @@ fn get_possible_steps(grid: &Terrain, pos: Pos) -> Vec<Pos> {
             None => {}
         }
     }
-    //println!("Found {} directions for {}, {}", dirs.len(), pos.x, pos.y);
     dirs
 }
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -193,9 +143,6 @@ impl Terrain {
             .enumerate()
         {
             for (col_idx, ord) in line.as_bytes().iter().map(|o| *o).enumerate() {
-                let bytes = vec![ord];
-                let letter = std::str::from_utf8(&bytes).unwrap();
-                //println!("{}, {}: {} ({})", row_idx, col_idx, ord, letter);
                 if ord == UPPERCASE_S_ORD {
                     start.x = col_idx;
                     start.y = row_idx;
@@ -222,6 +169,18 @@ impl Terrain {
             Some(elevation) => Some(*elevation),
             None => None,
         }
+    }
+
+    pub fn get_positions(&self, elevation: u8) -> impl Iterator<Item = Pos> + '_ {
+        self.elevations
+            .clone()
+            .into_iter()
+            .enumerate()
+            .filter(move |(_idx, e)| e == &elevation)
+            .map(|(idx, _e)| Pos {
+                x: idx % self.width,
+                y: idx / self.width,
+            })
     }
 }
 
@@ -250,8 +209,35 @@ mod tests {
     }
 
     #[test]
+    fn test_terain_get_positions() {
+        let test_input_path = "/home/sc/git/aoc/2022/input/12_test_input.txt";
+        let grid = Terrain::new(test_input_path).unwrap();
+        let lowest: HashSet<Pos> = grid.get_positions(0).collect();
+        let mut expected_lowest: HashSet<Pos> = HashSet::new();
+        expected_lowest.insert(Pos { x: 0, y: 0 });
+        expected_lowest.insert(Pos { x: 0, y: 1 });
+        expected_lowest.insert(Pos { x: 0, y: 2 });
+        expected_lowest.insert(Pos { x: 0, y: 3 });
+        expected_lowest.insert(Pos { x: 0, y: 4 });
+        expected_lowest.insert(Pos { x: 1, y: 4 });
+        assert_eq!(lowest, expected_lowest);
+    }
+
+    #[test]
     fn test_part_one_example() {
         let test_input_path = "/home/sc/git/aoc/2022/input/12_test_input.txt";
-        assert_eq!(31, compute_shortest_path_length(&test_input_path).unwrap());
+        assert_eq!(
+            31,
+            compute_shortest_path_length_from_start_to_end(&test_input_path).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_part_two_example() {
+        let test_input_path = "/home/sc/git/aoc/2022/input/12_test_input.txt";
+        assert_eq!(
+            29,
+            compute_shortest_path_length_from_lowest_to_end(&test_input_path).unwrap()
+        );
     }
 }

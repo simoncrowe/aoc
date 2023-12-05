@@ -174,14 +174,18 @@ func ExtractNum(x int, y int, hoods [][]Neighbourhood) []Neighbourhood {
 	return number
 }
 
-func ParseNums(numbers [][]Neighbourhood) []int {
-	numText := []string{}
-	for _, num := range numbers {
-		chars := []rune{}
-		for _, hood := range num {
-			chars = append(chars, rune(hood.Center[0]))
-		}
-		numText = append(numText, string(chars))
+func ParseNum(number []Neighbourhood) int {
+	chars := []rune{}
+	for _, hood := range number {
+		chars = append(chars, rune(hood.Center[0]))
 	}
-	return parseutil.ParseInts(numText)
+	return parseutil.ParseInt(string(chars))
+}
+
+func ParseNums(numbers [][]Neighbourhood) []int {
+	ints := []int{}
+	for _, num := range numbers {
+		ints = append(ints, ParseNum(num))
+	}
+	return ints
 }

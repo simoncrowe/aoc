@@ -90,8 +90,8 @@ func buildNeighbourhoods(lines []string) [][]Neighbourhood {
 	return hoods
 }
 
-func getDigits() collections.StrSet {
-	digits := make(collections.StrSet)
+func getDigits() collections.Set[string] {
+	digits := make(collections.Set[string])
 	digits.Add("0")
 	digits.Add("1")
 	digits.Add("2")
@@ -133,7 +133,7 @@ func extractNumbers(hoods [][]Neighbourhood) [][]Neighbourhood {
 }
 
 func containsSymbol(hood Neighbourhood) bool {
-	symbols := make(collections.StrSet)
+	symbols := make(collections.Set[string])
 	symbols.Add("#")
 	symbols.Add("$")
 	symbols.Add("%")

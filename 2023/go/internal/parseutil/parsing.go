@@ -3,10 +3,12 @@ package parseutil
 import (
 	"log"
 	"strconv"
+	"strings"
 )
 
 func ParseInt(val string) int {
-	parsed, err := strconv.Atoi(val)
+	trimmed := strings.Trim(val, " ")
+	parsed, err := strconv.Atoi(trimmed)
 	if err != nil {
 		log.Fatal(err)
 	}

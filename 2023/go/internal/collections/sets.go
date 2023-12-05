@@ -1,16 +1,16 @@
 package collections
 
-type StrSet map[string]struct{}
+type Set[T comparable] map[T]struct{}
 
-func (s StrSet) Add(element string) {
+func (s Set[T]) Add(element T) {
 	s[element] = struct{}{}
 }
 
-func (s StrSet) Remove(element string) {
+func (s Set[T]) Remove(element T) {
 	delete(s, element)
 }
 
-func (s StrSet) Contains(element string) bool {
+func (s Set[T]) Contains(element T) bool {
 	_, exists := s[element]
 	return exists
 }

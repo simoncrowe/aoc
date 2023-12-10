@@ -12,6 +12,22 @@ type Neighbourhood struct {
 	Neighbours string
 }
 
+func Build(lines []string) [][]string {
+	width := len(lines[0])
+	height := len(lines)
+	symbols := [][]string{}
+
+	for y := 0; y < height; y++ {
+		lineSymbols := []string{}
+		for x := 0; x < width; x++ {
+			lineSymbols = append(lineSymbols, string(lines[y][x]))
+		}
+		symbols = append(symbols, lineSymbols)
+	}
+
+	return symbols
+}
+
 func BuildNeighbourhoods(lines []string) [][]Neighbourhood {
 	lineChars := [][]rune{}
 	for _, line := range lines {

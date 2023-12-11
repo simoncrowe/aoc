@@ -6,54 +6,48 @@ import (
 	"log"
 	"os"
 	"slices"
+
+	"github.com/simoncrowe/aoc/2023/go/internal/mathutil"
 )
-
-type Vec2 struct {
-	x, y int
-}
-
-func (a Vec2) add(b Vec2) Vec2 {
-	return Vec2{a.x + b.x, a.y + b.y}
-}
-
-func (v Vec2) flip() Vec2 {
-	return Vec2{v.x - (2 * v.x), v.y - (2 * v.y)}
-}
 
 type Ground struct{}
 
 type Pipe struct {
-	inA, inB Vec2
+	inA, inB mathutil.Vec2
 	sym      string
 }
 
 type Traversable interface {
-	isOpen(Vec2) bool
+	isOpen(mathutil.Vec2) bool
+	runsAlongY() bool
+	enclosable() bool
 }
 
-func (p Pipe) isOpen(inDir Vec2) bool {
+func (g Ground) isOpen(inDir mathutil.Vec2) bool { return false }
+func (g Ground) runsAlongY() bool                { return false }
+func (g Ground) enclosable() bool                { return true }
+
+func (p Pipe) isOpen(inDir mathutil.Vec2) bool {
 	return inDir == p.inA || inDir == p.inB
 }
 
-func (g Ground) isOpen(inDir Vec2) bool {
-	return false
+func (p Pipe) runsAlongY() bool {
+	return p.inA.Y != 0 || p.inB.Y != 0
 }
 
-func (p Pipe) exit(inDir Vec2) Vec2 {
-	var out Vec2
+func (p Pipe) getOutDir(inDir mathutil.Vec2) mathutil.Vec2 {
+	var out mathutil.Vec2
 	if inDir == p.inA {
-		out = p.inB.flip()
+		out = p.inB.Flip()
 	} else if inDir == p.inB {
-		out = p.inA.flip()
+		out = p.inA.Flip()
 	} else {
 		log.Fatalln("Pipe ", p, " not open to dir ", inDir)
 	}
 	return out
 }
 
-func (g Ground) CanEnter(inDir Vec2) bool {
-	return false
-}
+func (p Pipe) enclosable() bool { return false }
 
 func main() {
 	lines := []string{}
@@ -67,32 +61,60 @@ func main() {
 		lines = append(lines, scanner.Text())
 	}
 	slices.Reverse(lines)
-	grid, start := makeTraversable(lines)
-	cycle := walk(grid, start)
 
-	fmt.Println("Part 1 answer :", (len(cycle)+1)/2)
+	grid, start := makeTraversable(lines)
+	loopLocs, loopPipes := walkLoop(grid, start)
+	fmt.Println("Part 1 answer :", (len(loopPipes)+1)/2)
+
+	enclosedLocs, enclosedObjs := getEnclosed(loopLocs, loopPipes, grid)
+	log.Print(enclosedLocs)
+	log.Print(enclosedObjs)
+	fmt.Println("Part 2 answer :", len(enclosedLocs))
 }
 
-func walk(grid [][]Traversable, start Vec2) []Pipe {
-	cycle := []Pipe{}
+func walkLoop(grid [][]Traversable, start mathutil.Vec2) ([]mathutil.Vec2, []Pipe) {
+	pipes := []Pipe{}
+	locs := []mathutil.Vec2{}
 	dir := findDir(grid, start)
-	loc := start.add(dir)
+	loc := start.Add(dir)
 	for loc != start {
-		pipe := grid[loc.y][loc.x].(Pipe)
+		locs = append(locs, loc)
+		pipe := grid[loc.Y][loc.X].(Pipe)
 		log.Print("pipe at loc ", loc, ": ", pipe)
-		cycle = append(cycle, pipe)
-		dir = pipe.exit(dir)
-		loc = loc.add(dir)
+		pipes = append(pipes, pipe)
+		dir = pipe.getOutDir(dir)
+		loc = loc.Add(dir)
 		log.Print("loc: ", loc, "; dir: ", dir)
 	}
-	return cycle
+	return locs, pipes
 }
 
-func findDir(grid [][]Traversable, loc Vec2) Vec2 {
-	dirs := []Vec2{Vec2{1, 0}, Vec2{0, 1}, Vec2{-1, 0}, Vec2{0, -1}}
-	var found Vec2
+func getEnclosed(loopLocs []mathutil.Vec2, loopPipes []Pipe, grid [][]Traversable) ([]mathutil.Vec2, []Traversable) {
+	enclosedLocs := []mathutil.Vec2{}
+	enclosedObjs := []Traversable{}
+	height := len(grid)
+	width := len(grid[0])
+	insideLoop := false
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			obj := grid[y][x]
+			loc := mathutil.Vec2{x, y}
+			if obj.enclosable() && insideLoop {
+				enclosedLocs = append(enclosedLocs, loc)
+			}
+			if slices.Contains(loopLocs, loc) && obj.runsAlongY() {
+				insideLoop = !insideLoop
+			}
+		}
+	}
+	return enclosedLocs, enclosedObjs
+}
+
+func findDir(grid [][]Traversable, loc mathutil.Vec2) mathutil.Vec2 {
+	dirs := []mathutil.Vec2{mathutil.Vec2{1, 0}, mathutil.Vec2{0, 1}, mathutil.Vec2{-1, 0}, mathutil.Vec2{0, -1}}
+	var found mathutil.Vec2
 	for _, dir := range dirs {
-		x, y := loc.x+dir.x, loc.y+dir.y
+		x, y := loc.X+dir.X, loc.Y+dir.Y
 		if x < 0 || x >= len(grid[0]) || y < 0 || y >= len(grid) {
 			continue
 		}
@@ -104,34 +126,34 @@ func findDir(grid [][]Traversable, loc Vec2) Vec2 {
 	return found
 }
 
-func makeTraversable(lines []string) ([][]Traversable, Vec2) {
+func makeTraversable(lines []string) ([][]Traversable, mathutil.Vec2) {
 	width := len(lines[0])
 	height := len(lines)
 	data := make([][]Traversable, height)
 	for i := range data {
 		data[i] = make([]Traversable, width)
 	}
-	var startLoc Vec2
+	var startLoc mathutil.Vec2
 
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			switch sym := string(lines[y][x]); sym {
 			case "|":
-				data[y][x] = Pipe{Vec2{0, 1}, Vec2{0, -1}, sym}
+				data[y][x] = Pipe{mathutil.Vec2{0, 1}, mathutil.Vec2{0, -1}, sym}
 			case "-":
-				data[y][x] = Pipe{Vec2{1, 0}, Vec2{-1, 0}, sym}
+				data[y][x] = Pipe{mathutil.Vec2{1, 0}, mathutil.Vec2{-1, 0}, sym}
 			case "L":
-				data[y][x] = Pipe{Vec2{0, -1}, Vec2{-1, 0}, sym}
+				data[y][x] = Pipe{mathutil.Vec2{0, -1}, mathutil.Vec2{-1, 0}, sym}
 			case "J":
-				data[y][x] = Pipe{Vec2{0, -1}, Vec2{1, 0}, sym}
+				data[y][x] = Pipe{mathutil.Vec2{0, -1}, mathutil.Vec2{1, 0}, sym}
 			case "7":
-				data[y][x] = Pipe{Vec2{0, 1}, Vec2{1, 0}, sym}
+				data[y][x] = Pipe{mathutil.Vec2{0, 1}, mathutil.Vec2{1, 0}, sym}
 			case "F":
-				data[y][x] = Pipe{Vec2{0, 1}, Vec2{-1, 0}, sym}
+				data[y][x] = Pipe{mathutil.Vec2{0, 1}, mathutil.Vec2{-1, 0}, sym}
 			case ".":
 				data[y][x] = Ground{}
 			case "S":
-				startLoc = Vec2{x, y}
+				startLoc = mathutil.Vec2{x, y}
 				log.Print("Start loc: ", startLoc)
 			}
 		}

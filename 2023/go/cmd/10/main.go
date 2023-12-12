@@ -7,42 +7,31 @@ import (
 	"os"
 	"slices"
 
+	"github.com/EliCDavis/vector/vector2"
 	"github.com/simoncrowe/aoc/2023/go/internal/mathutil"
 )
 
 type Ground struct{ sym string }
 
 type Pipe struct {
-	inA, inB mathutil.Vec2
+	inA, inB vector2.Vector[int]
 	sym      string
 }
 
 type Traversable interface {
-	isOpen(mathutil.Vec2) bool
-	runsAlongX() bool
-	runsAlongY() bool
+	isOpen(vector2.Vector[int]) bool
 	getSym() string
 }
 
-func (g Ground) isOpen(inDir mathutil.Vec2) bool { return false }
-func (g Ground) runsAlongX() bool                { return false }
-func (g Ground) runsAlongY() bool                { return false }
-func (g Ground) getSym() string                  { return g.sym }
+func (g Ground) isOpen(inDir vector2.Vector[int]) bool { return false }
+func (g Ground) getSym() string                        { return g.sym }
 
-func (p Pipe) isOpen(inDir mathutil.Vec2) bool {
+func (p Pipe) isOpen(inDir vector2.Vector[int]) bool {
 	return inDir == p.inA || inDir == p.inB
 }
 
-func (p Pipe) runsAlongY() bool {
-	return p.inA.Y != 0 || p.inB.Y != 0
-}
-
-func (p Pipe) runsAlongX() bool {
-	return p.inA.X != 0 || p.inB.X != 0
-}
-
-func (p Pipe) getOutDir(inDir mathutil.Vec2) mathutil.Vec2 {
-	var out mathutil.Vec2
+func (p Pipe) getOutDir(inDir vector2.Vector[int]) vector2.Vector[int] {
+	var out vector2.Vector[int]
 	if inDir == p.inA {
 		out = p.inB.Flip()
 	} else if inDir == p.inB {
@@ -53,11 +42,11 @@ func (p Pipe) getOutDir(inDir mathutil.Vec2) mathutil.Vec2 {
 	return out
 }
 
-func (p Pipe) getSym() string   { return p.sym }
+func (p Pipe) getSym() string { return p.sym }
 
 func main() {
 	lines := []string{}
-	file, err := os.Open("../input/10-test-input-2.txt")
+	file, err := os.Open("../input/10-input.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,24 +59,21 @@ func main() {
 
 	grid, start := makeTraversable(lines)
 	loopLocs, loopPipes := walkLoop(grid, start)
-	log.Print(loopPipes)
-	fmt.Println("Part 1 answer :", len(loopPipes)/2)
-	
-	enclosedLocs, enclosedObjs := getEnclosed(loopLocs, loopPipes, grid)
-	log.Print(enclosedLocs)
-	log.Print(enclosedObjs)
-	fmt.Println("Part 2 answer :", len(enclosedLocs))
+
+	loopSegs := buildLineSegs(loopLocs)
+	enclosed := countEnclosed(loopSegs, loopLocs, loopPipes, grid)
+	fmt.Println("Part 2 answer :", enclosed)
 }
 
-func walkLoop(grid [][]Traversable, start mathutil.Vec2) ([]mathutil.Vec2, []Pipe) {
-	startPipe := grid[start.Y][start.X].(Pipe)
+func walkLoop(grid [][]Traversable, start vector2.Vector[int]) ([]vector2.Vector[int], []Pipe) {
+	startPipe := grid[start.Y()][start.X()].(Pipe)
 	dir := startPipe.inA.Flip()
 	pipes := []Pipe{startPipe}
-	locs := []mathutil.Vec2{start}
+	locs := []vector2.Vector[int]{start}
 	loc := start.Add(dir)
 	for loc != start {
 		locs = append(locs, loc)
-		pipe := grid[loc.Y][loc.X].(Pipe)
+		pipe := grid[loc.Y()][loc.X()].(Pipe)
 		pipes = append(pipes, pipe)
 		dir = pipe.getOutDir(dir)
 		loc = loc.Add(dir)
@@ -95,66 +81,32 @@ func walkLoop(grid [][]Traversable, start mathutil.Vec2) ([]mathutil.Vec2, []Pip
 	return locs, pipes
 }
 
-func getEnclosed(loopLocs []mathutil.Vec2, loopPipes []Pipe, grid [][]Traversable) ([]mathutil.Vec2, []Traversable) {
-	castDirs := []mathutil.Vec2{mathutil.Vec2{1, 0}, mathutil.Vec2{-1, 0}, mathutil.Vec2{0, 1}, mathutil.Vec2{0, -1}}
-	enclosedLocs := []mathutil.Vec2{}
-	enclosedObjs := []Traversable{}
+func buildLineSegs(centres []vector2.Vector[int]) []mathutil.LineSeg {
+	
+}
+
+func countEnclosed(loop []mathutil.LineSeg, loopLocs []vector2.Vector[int], loopPipes []Pipe, grid [][]Traversable) int {
 	height := len(grid)
 	width := len(grid[0])
+	enclosed := 0
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			loc := mathutil.Vec2{x, y}
+			loc := vector2.New[int](x, y)
 			obj := grid[y][x]
 			if slices.Contains(loopLocs, loc) {
 				log.Printf("Skipping %v (%s) as part of loop", loc, obj.getSym())
 				continue
 			}
-			misses := 0	
-			for _, dir := range castDirs {
-				ray := buildRay(loc, width-x, dir) 
-				intersect := castRay(loopLocs, loopPipes, ray, grid)
-				if intersect % 2 == 0 {
-					misses ++	
-				}
-			}
-			if misses < 3 {
-				log.Printf("%v (%s) is enclosed!", loc, obj.getSym())
-				enclosedLocs = append(enclosedLocs, loc)
-				enclosedObjs = append(enclosedObjs, grid[y][x])
-			}
 		}
 	}
-	return enclosedLocs, enclosedObjs
+	return enclosed 
 }
 
-func buildRay(start mathutil.Vec2, length int, dir mathutil.Vec2) []mathutil.Vec2 {
-	ray := []mathutil.Vec2{}
-	for i := 1; i < length; i++ {
-		ray = append(ray, start.Add(dir.Mul(i)))
-	}
-	return ray
-}
-
-func castRay(contour []mathutil.Vec2, pipes []Pipe, ray []mathutil.Vec2, grid [][]Traversable) int {
-	intersect := 0
-	for _, loc := range ray {
-		hitIdx := slices.Index(contour, loc)
-		if hitIdx == -1 {
-			continue
-		}
-		pipe := pipes[hitIdx]
-		log.Print("Ray hit at ", loc, " for ", pipe.sym)
-		intersect++
-	}
-	return intersect
-}
-
-
-func findInDirs(grid [][]Traversable, loc mathutil.Vec2) (mathutil.Vec2, mathutil.Vec2) {
-	dirs := []mathutil.Vec2{mathutil.Vec2{1, 0}, mathutil.Vec2{0, 1}, mathutil.Vec2{-1, 0}, mathutil.Vec2{0, -1}}
-	found := []mathutil.Vec2{}
+func findInDirs(grid [][]Traversable, loc vector2.Vector[int]) (vector2.Vector[int], vector2.Vector[int]) {
+	dirs := []vector2.Vector[int]{vector2.New[int](1, 0), vector2.New[int](0, 1), vector2.New[int](-1, 0), vector2.New[int](0, -1)}
+	found := []vector2.Vector[int]{}
 	for _, dir := range dirs {
-		x, y := loc.X+dir.X, loc.Y+dir.Y
+		x, y := loc.X()+dir.X(), loc.Y()+dir.Y()
 		if x < 0 || x >= len(grid[0]) || y < 0 || y >= len(grid) {
 			continue
 		}
@@ -165,38 +117,38 @@ func findInDirs(grid [][]Traversable, loc mathutil.Vec2) (mathutil.Vec2, mathuti
 	return found[0], found[1]
 }
 
-func makeTraversable(lines []string) ([][]Traversable, mathutil.Vec2) {
+func makeTraversable(lines []string) ([][]Traversable, vector2.Vector[int]) {
 	width := len(lines[0])
 	height := len(lines)
 	data := make([][]Traversable, height)
 	for i := range data {
 		data[i] = make([]Traversable, width)
 	}
-	var startLoc mathutil.Vec2
+	var startLoc vector2.Vector[int]
 
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			switch sym := string(lines[y][x]); sym {
 			case "|":
-				data[y][x] = Pipe{mathutil.Vec2{0, 1}, mathutil.Vec2{0, -1}, sym}
+				data[y][x] = Pipe{vector2.New[int](0, 1), vector2.New[int](0, -1), sym}
 			case "-":
-				data[y][x] = Pipe{mathutil.Vec2{1, 0}, mathutil.Vec2{-1, 0}, sym}
+				data[y][x] = Pipe{vector2.New[int](1, 0), vector2.New[int](-1, 0), sym}
 			case "L":
-				data[y][x] = Pipe{mathutil.Vec2{0, -1}, mathutil.Vec2{-1, 0}, sym}
+				data[y][x] = Pipe{vector2.New[int](0, -1), vector2.New[int](-1, 0), sym}
 			case "J":
-				data[y][x] = Pipe{mathutil.Vec2{0, -1}, mathutil.Vec2{1, 0}, sym}
+				data[y][x] = Pipe{vector2.New[int](0, -1), vector2.New[int](1, 0), sym}
 			case "7":
-				data[y][x] = Pipe{mathutil.Vec2{0, 1}, mathutil.Vec2{1, 0}, sym}
+				data[y][x] = Pipe{vector2.New[int](0, 1), vector2.New[int](1, 0), sym}
 			case "F":
-				data[y][x] = Pipe{mathutil.Vec2{0, 1}, mathutil.Vec2{-1, 0}, sym}
+				data[y][x] = Pipe{vector2.New[int](0, 1), vector2.New[int](-1, 0), sym}
 			case ".":
 				data[y][x] = Ground{sym}
 			case "S":
-				startLoc = mathutil.Vec2{x, y}
+				startLoc = vector2.New[int](x, y)
 			}
 		}
 	}
 	inA, inB := findInDirs(data, startLoc)
-	data[startLoc.Y][startLoc.X] = Pipe{inA, inB, "S"}
+	data[startLoc.Y()][startLoc.X()] = Pipe{inA, inB, "S"}
 	return data, startLoc
 }

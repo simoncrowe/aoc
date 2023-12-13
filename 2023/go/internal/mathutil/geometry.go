@@ -1,46 +1,43 @@
 package mathutil
 
 import (
-	"log"
-
 	"github.com/EliCDavis/vector/vector2"
 )
 
 type LineSeg struct {
-	A, B vector2.Vector[float64]
+	P, Q vector2.Vector[float64]
 }
 
-func CountIntersections(p LineSeg, dctour []LineSeg) int {
+func CountIntersections(p LineSeg, contour []LineSeg) int {
 	count := 0
-	for _, q := range dctour {
+	for _, q := range contour {
 		if Intersects(p, q) {
-			log.Printf("%v and %v intersect", p, q)
 			count++
 		}
 	}
 	return count
 
 }
-func Intersects(p, q LineSeg) bool {
-	o1 := getOrientation(p.A, q.A, p.B)
-	o2 := getOrientation(p.A, q.A, q.B)
-	o3 := getOrientation(p.B, q.B, p.A)
-	o4 := getOrientation(p.B, q.B, q.A)
+func Intersects(one, two LineSeg) bool {
+	o1 := getOrientation(one.P, one.Q, two.P)
+	o2 := getOrientation(one.P, one.Q, two.Q)
+	o3 := getOrientation(two.P, two.Q, one.P)
+	o4 := getOrientation(two.P, two.Q, one.Q)
 
 	if o1 != o2 && o3 != o4 {
 		return true
 	}
 
-	if o1 == 0 && onSegment(p.A, p.B, q.A) {
+	if o1 == 0 && onSegment(one.P, two.P, one.Q) {
 		return true
 	}
-	if o2 == 0 && onSegment(p.A, p.B, q.A) {
+	if o2 == 0 && onSegment(one.P, two.Q, one.Q) {
 		return true
 	}
-	if o3 == 0 && onSegment(p.B, p.A, q.B) {
+	if o3 == 0 && onSegment(two.P, one.P, two.Q) {
 		return true
 	}
-	if o4 == 0 && onSegment(p.B, q.A, q.B) {
+	if o4 == 0 && onSegment(two.P, one.Q, two.Q) {
 		return true
 	}
 
@@ -50,7 +47,6 @@ func Intersects(p, q LineSeg) bool {
 // Find orentation of ordered triplet p,q,r
 func getOrientation(p, q, r vector2.Vector[float64]) float64 {
 	val := (q.Y()-p.Y())*(r.X()-q.X()) - (q.X()-p.X())*(r.Y()-q.Y())
-	log.Printf("Orientation for %v, %v and %v: %f", p, q, r, val)
 	if val > 0 {
 		// Clockwise
 		return 1

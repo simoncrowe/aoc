@@ -47,7 +47,7 @@ func (p Pipe) getSym() string { return p.sym }
 
 func main() {
 	lines := []string{}
-	file, err := os.Open("../input/10-test-input-3.txt")
+	file, err := os.Open("../input/10-input.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -64,8 +64,9 @@ func main() {
 
 	loopSegs := buildLineSegs(loop)
 	width, height := float64(len(grid[0])), float64(len(grid))
-	enclosed, locs := countEnclosed(loopSegs, locs, grid)
-	Draw(loopSegs, locs, width, height, 16.0, "./out.png")
+	rayOffset := vector2.New[float64](0.7071, 0.7071).Scale(float64(height + width))
+	enclosed, locs := countEnclosed(loopSegs, rayOffset, locs, grid)
+	Draw(loopSegs, rayOffset, locs, width, height, 8, "./out.png")
 	fmt.Println("Part 2 answer :", enclosed)
 }
 
@@ -97,19 +98,16 @@ func buildLineSegs(pipes []Pipe) []mathutil.LineSeg {
 	return segs
 }
 
-func countEnclosed(loop []mathutil.LineSeg, loopLocs []vector2.Vector[int], grid [][]Traversable) (int, []vector2.Vector[int]) {
+func countEnclosed(loop []mathutil.LineSeg, rayOffset vector2.Vector[float64], loopLocs []vector2.Vector[int], grid [][]Traversable) (int, []vector2.Vector[int]) {
 	height := len(grid)
 	width := len(grid[0])
-	rayOffset := vector2.New[float64](0.875, 0.5145).Scale(float64(height + width))
 
 	enclosed := 0
 	locs := []vector2.Vector[int]{}
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			loc := vector2.New[int](x, y)
-			obj := grid[y][x]
 			if slices.Contains(loopLocs, loc) {
-				log.Printf("Skipping %v (%s) as part of loop", loc, obj.getSym())
 				continue
 			}
 			floc := loc.ToFloat64()
@@ -177,7 +175,7 @@ func makeTraversable(lines []string) ([][]Traversable, vector2.Vector[int]) {
 	return data, startLoc
 }
 
-func Draw(segs []mathutil.LineSeg, points []vector2.Vector[int], width, height, scale float64, path string) {
+func Draw(segs []mathutil.LineSeg, rayOffset vector2.Vector[float64], points []vector2.Vector[int], width, height, scale float64, path string) {
 	fullWidth, fullHeight := width*scale, height*scale
 	dc := gg.NewContext(int(fullWidth), int(fullHeight))
 
@@ -190,24 +188,26 @@ func Draw(segs []mathutil.LineSeg, points []vector2.Vector[int], width, height, 
 	dc.SetRGB(0, 0, 0)
 	offset := vector2.New[float64](0.5, 0.5).Scale(scale)
 	for _, seg := range segs {
-		a := seg.A.Scale(scale).Add(offset)
-		b := seg.B.Scale(scale).Add(offset)
+		a := seg.P.Scale(scale).Add(offset)
+		b := seg.Q.Scale(scale).Add(offset)
 		dc.DrawLine(a.X(), a.Y(), b.X(), b.Y())
 		dc.Stroke()
 	}
 
-	dc.SetRGB(0.9, 0.1, 0.1)
+	rayOffset = rayOffset.Scale(scale)
 	for _, point := range points {
+		dc.SetRGB(0.9, 0.1, 0.1)
 		loc := point.ToFloat64().Scale(scale).Add(offset)
 		dc.DrawPoint(loc.X(), loc.Y(), 2)
 		dc.Fill()
+		
+		ray := loc.Add(rayOffset)
+		dc.SetRGB(0.8, 0.5, 0.5)
+		dc.DrawLine(loc.X(), loc.Y(), ray.X(), ray.Y())
+		dc.Stroke()
 	}
 
 	// ray vector
-	dc.SetRGB(0.1, 0.1, 0.9)
-	ray := vector2.New[float64](0.875, 0.5145).Scale(float64(height + width)).Scale(scale)
-	dc.DrawLine(0.0, 0.0, ray.X(), ray.Y())
-	dc.Stroke()
 
 	// Grid
 	dc.SetRGB(0.0, 0.5, 0.5)

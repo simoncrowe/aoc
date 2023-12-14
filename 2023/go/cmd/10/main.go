@@ -200,7 +200,7 @@ func Draw(segs []mathutil.LineSeg, rayOffset vector2.Vector[float64], points []v
 		loc := point.ToFloat64().Scale(scale).Add(offset)
 		dc.DrawPoint(loc.X(), loc.Y(), 2)
 		dc.Fill()
-		
+
 		ray := loc.Add(rayOffset)
 		dc.SetRGB(0.8, 0.5, 0.5)
 		dc.DrawLine(loc.X(), loc.Y(), ray.X(), ray.Y())

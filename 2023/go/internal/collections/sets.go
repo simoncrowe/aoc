@@ -2,6 +2,11 @@ package collections
 
 type Set[T comparable] map[T]struct{}
 
+
+func NewSet[T comparable]() Set[T] {
+	return Set[T]{}
+}
+
 func (s Set[T]) Add(element T) {
 	s[element] = struct{}{}
 }

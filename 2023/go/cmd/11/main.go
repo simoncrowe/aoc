@@ -8,7 +8,6 @@ import (
 	"slices"
 
 	"github.com/EliCDavis/vector/vector2"
-	"github.com/dominikbraun/graph"
 	"github.com/simoncrowe/aoc/2023/go/internal/grids"
 	"github.com/simoncrowe/aoc/2023/go/internal/mathutil"
 )
@@ -90,31 +89,6 @@ func expandLocations(grid [][]string, locs []vector2.Vector[int], offset int) []
 
 func hashLoc(loc vector2.Vector[int]) string {
 	return fmt.Sprint(loc)
-}
-
-func buildGraph(grid [][]string) graph.Graph[string, vector2.Vector[int]] {
-	height := len(grid)
-	width := len(grid[0])
-	g := graph.New(hashLoc)
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			loc := vector2.New[int](x, y)
-			g.AddVertex(loc)
-			if x > 0 {
-				g.AddEdge(hashLoc(loc), hashLoc(vector2.New[int](x-1, y)))
-			}
-			if y > 0 {
-				g.AddEdge(hashLoc(loc), hashLoc(vector2.New[int](x, y-1)))
-			}
-			if x < width-1 {
-				g.AddEdge(hashLoc(loc), hashLoc(vector2.New[int](x+1, y)))
-			}
-			if y < height-1 {
-				g.AddEdge(hashLoc(loc), hashLoc(vector2.New[int](x, y+1)))
-			}
-		}
-	}
-	return g
 }
 
 func buildPairs(locs []vector2.Vector[int]) [][]vector2.Vector[int] {
